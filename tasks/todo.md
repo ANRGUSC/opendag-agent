@@ -27,9 +27,19 @@ LocalFirst $0.017 / 178 s anchors the cheap end of the Pareto frontier.
 Note: with 2 Mbps uplinks HEFT ships raw data to parallel API nodes (makespan-
 optimal, cost-blind); the P1 regime sweep + cost-aware λ objective covers this.
 
-## P1 — full E1 simulation campaign (next)
+## P1 — full E1 simulation campaign
 
-- [ ] Topology sweep × network configs × all SAGA schedulers → F4/F5(sim)/T2
+- [x] Network regimes (edge_heavy / hybrid / api_rich) + API lane parallelism
+- [x] Cost-aware λ-sweep scheduler (`CostAwareScheduler`) + Pareto helpers
+- [x] `experiments/e1_campaign.py`: 5 families × sizes × 3 regimes ×
+      19 classical + 6 baselines + λ-sweep, every schedule validated
+      (DPS excluded for pathological runtime; see development.md)
+- [x] `experiments/e1b_stochastic.py`: SHEFT vs MeanHEFT, paired MC replay
+      (planning sees cost uncertainty; world adds API speed volatility)
+- [x] `experiments/ncsim_crosscheck.py`: SAGA vs ncsim discrete-event — 0.0% diff
+- [x] F4 (makespan distributions), F5 (Pareto), T2 (ranking md+csv)
+- [x] One command regenerates everything: `python experiments/run_p1.py`
+- [x] Tests (28 passing), CI runs `run_p1 --quick`
 
 ## Later phases
 

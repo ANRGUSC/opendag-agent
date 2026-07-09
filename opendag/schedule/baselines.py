@@ -57,14 +57,15 @@ class _PolicyScheduler(Scheduler):
         return sorted(n.name for n in network.nodes)
 
     def _pick(self, task_name: str, candidates: List[str], step: int,
-              network: Network) -> str:
+              network: Network, schedule: Schedule,
+              task_graph: TaskGraph) -> str:
         raise NotImplementedError
 
     def schedule(self, network: Network, task_graph: TaskGraph) -> Schedule:
         schedule = Schedule(task_graph, network)
         for step, task in enumerate(task_graph.topological_sort()):
             node = self._pick(task.name, self._candidates(task.name, network),
-                              step, network)
+                              step, network, schedule, task_graph)
             _add(schedule, network, task_graph, task.name, node)
         return schedule
 
@@ -77,7 +78,7 @@ class AllOnScheduler(_PolicyScheduler):
 
     target: str = ""
 
-    def _pick(self, task_name, candidates, step, network):
+    def _pick(self, task_name, candidates, step, network, schedule, task_graph):
         return self.target if self.target in candidates else candidates[0]
 
 
@@ -87,7 +88,7 @@ class LocalFirstScheduler(_PolicyScheduler):
 
     api_nodes: List[str] = []
 
-    def _pick(self, task_name, candidates, step, network):
+    def _pick(self, task_name, candidates, step, network, schedule, task_graph):
         local = [c for c in candidates if c not in self.api_nodes]
         pool = local if local else candidates
         return max(pool, key=lambda n: (network.get_node(n).speed, n))
@@ -96,7 +97,7 @@ class LocalFirstScheduler(_PolicyScheduler):
 class RoundRobinScheduler(_PolicyScheduler):
     """Cycle through each task's feasible executors in name order."""
 
-    def _pick(self, task_name, candidates, step, network):
+    def _pick(self, task_name, candidates, step, network, schedule, task_graph):
         return candidates[step % len(candidates)]
 
 
@@ -109,7 +110,7 @@ class RandomScheduler(_PolicyScheduler):
         self._rng = random.Random(self.seed)
         return super().schedule(network, task_graph)
 
-    def _pick(self, task_name, candidates, step, network):
+    def _pick(self, task_name, candidates, step, network, schedule, task_graph):
         return self._rng.choice(candidates)
 
 
@@ -119,7 +120,7 @@ class GreedyCheapestScheduler(_PolicyScheduler):
 
     prices: Dict[str, float] = {}
 
-    def _pick(self, task_name, candidates, step, network):
+    def _pick(self, task_name, candidates, step, network, schedule, task_graph):
         return min(candidates,
                    key=lambda n: (self.prices.get(n, 0.0),
                                   -network.get_node(n).speed, n))
@@ -146,9 +147,17 @@ class ConstrainedScheduler(Scheduler):
 
     def schedule(self, network: Network, task_graph: TaskGraph) -> Schedule:
         schedule = self.inner.schedule(network, task_graph)
+        # Any infeasible instance counts — schedulers with task duplication
+        # (HEFT-family, HBMCT) may place a *copy* on a forbidden node even
+        # when the earliest instance is fine. Rebuilding drops duplicates.
+        dirty = False
+        for node, tasks in schedule.items():
+            for st in tasks:
+                allowed = self.feasible.get(st.name)
+                if allowed is not None and node not in allowed:
+                    dirty = True
         assignment = assignments_from_schedule(schedule)
         repaired = dict(assignment)
-        dirty = False
         for task_name, node in assignment.items():
             allowed = self.feasible.get(task_name)
             if allowed is not None and node not in allowed:
@@ -156,6 +165,18 @@ class ConstrainedScheduler(Scheduler):
                     allowed, key=lambda n: (network.get_node(n).speed, n)
                 )
                 dirty = True
+        # Completeness: some inner schedulers (observed: HBMCT) can drop
+        # tasks from their schedule entirely. Place any missing real task on
+        # its fastest feasible executor.
+        for task in task_graph.tasks:
+            if is_super(task.name) or task.name in repaired:
+                continue
+            allowed = self.feasible.get(task.name) \
+                or [n.name for n in network.nodes]
+            repaired[task.name] = max(
+                allowed, key=lambda n: (network.get_node(n).speed, n)
+            )
+            dirty = True
         if not dirty:
             return schedule
         return AssignmentScheduler(assignment=repaired).schedule(network, task_graph)

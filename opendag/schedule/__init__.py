@@ -16,6 +16,12 @@ from .bridge import (
 )
 from .costs import ROLE_PROMPT_TOKENS, TOKENS_PER_KB, assignment_cost_usd, task_tokens
 from .executors import Executor, ExecutorNetwork
+from .multiobjective import (
+    DEFAULT_LAMBDAS,
+    CostAwareScheduler,
+    pareto_front,
+    per_task_usd_map,
+)
 
 
 def classical_schedulers(names: list[str] | None = None) -> dict:
@@ -48,7 +54,9 @@ def classical_schedulers(names: list[str] | None = None) -> dict:
         "HBMCT": ss.HbmctScheduler,
         "MSBC": ss.MsbcScheduler,
         "MST": ss.MSTScheduler,
-        "Hybrid": ss.HybridScheduler,
+        # ss.HybridScheduler is a meta-scheduler (requires a portfolio via its
+        # `schedulers` field) rather than a standalone algorithm; construct it
+        # explicitly if you want portfolio-best-of behavior.
     }
     if names is None:
         names = ["HEFT", "CPoP", "MinMin"]
@@ -74,4 +82,8 @@ __all__ = [
     "Executor",
     "ExecutorNetwork",
     "classical_schedulers",
+    "DEFAULT_LAMBDAS",
+    "CostAwareScheduler",
+    "pareto_front",
+    "per_task_usd_map",
 ]

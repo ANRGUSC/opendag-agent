@@ -22,3 +22,5 @@ jobs:
         run: pytest
       - name: Quick simulation smoke
         run: python experiments/e1_sim.py --quick --no-figures
+      - name: P1 pipeline smoke (campaign + stochastic + ncsim + figures)
+        run: python experiments/run_p1.py --quick

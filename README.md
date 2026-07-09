@@ -40,6 +40,35 @@ uplinks, shipping raw data to parallel API nodes beats extracting locally on
 makespan; tightening the uplinks flips the optimum back to the edge. That
 placement reasoning is exactly what agent frameworks are missing.
 
+## Simulation campaign results (P1)
+
+1,767 validated schedules: 5 topology families × sizes (10–100 tasks) ×
+3 network regimes (edge-heavy / hybrid / API-rich) × 19 classical SAGA
+schedulers + 6 naive baselines + a cost-aware λ-sweep. Regenerate everything
+with `python experiments/run_p1.py`.
+
+![Cost vs makespan Pareto](docs/img/f5_pareto.png)
+
+- The framework-default baseline (every step on the frontier API) averages
+  **1.4–3.7× the best achievable makespan** depending on topology family,
+  and is strictly dominated on the cost/makespan plane.
+- The cost-aware λ-sweep is a knob agent frameworks don't have: on the
+  flagship edge-sensing instance it beats HEFT's makespan at near-zero
+  dollar cost by keeping work local — data locality pays on both axes.
+- Honest negatives, reported: not every classical algorithm transfers (GDL
+  lands ~12×, echoing SAGA's PISA finding that no scheduler dominates), and
+  repair-wrapped constraint-blind schedulers lose to natively
+  constraint-aware greedy on pinned graphs — concrete motivation for the
+  constraint-aware classical variants on the roadmap.
+- Under LLM latency variance, SHEFT improves p95 makespan by up to 3.2%
+  over MeanHEFT at zero extra cost (paired Monte-Carlo, E1b).
+- Independent-engine validation: SAGA's analytic makespans and ncsim's
+  discrete-event simulations agree within 0.0–0.8% on identical instances.
+
+Distributions across all 57 instances:
+[f4_makespan_distributions.png](docs/img/f4_makespan_distributions.png) ·
+ranking table: `figures/out/t2_ranking.md` (after a run).
+
 ## Quickstart (no cluster, no API keys, no cost)
 
 ```bash
@@ -68,7 +97,7 @@ AgentGraph ──▶ profiles ──▶ SAGA schedule ──▶ execute ──�
 | Module | What it does | Status |
 |---|---|---|
 | `opendag.graphs` | Agentic DAG model (typed tasks, model tiers, pins, payloads), JSON format, five canonical parameterized topologies | ✅ P0 |
-| `opendag.schedule` | Executor/network model → SAGA `Network`; AgentGraph → SAGA `TaskGraph`; baseline strategies as SAGA `Scheduler` subclasses; feasibility (tier/pin) enforcement wrapper; $ cost model | ✅ P0 |
+| `opendag.schedule` | Executor/network model → SAGA `Network`; AgentGraph → SAGA `TaskGraph`; baseline strategies as SAGA `Scheduler` subclasses; feasibility (tier/pin) enforcement wrapper; $ cost model; cost-aware λ-sweep scheduler; stochastic instances + Monte-Carlo schedule evaluation | ✅ P0+P1 |
 | `opendag.execute` | `LocalRunner`: async in-process execution with a pluggable LLM client (`MockLLMClient` is free and deterministic) | ✅ P0 (Wayline ODAG compiler: P2) |
 | `opendag.profile` | Measured token throughput / API latency / bandwidth profiles (dagprofiler-style JSON) | ⬜ P2 |
 | `opendag.security` | Ed25519 identities, signed envelopes, hash-chained audit log, `opendag verify`; groundwork for privacy-preserving partitioned data/model transfer over Wayline's data plane | ⬜ P3 |
@@ -108,9 +137,12 @@ executor parameters are declared, not measured.
 
 - **P0 (this release):** agentic DAG model + topologies, SAGA bridge,
   feasibility constraints, baselines, cost model, LocalRunner, quick sim.
-- **P1:** full simulation campaign — topology × size × network-regime sweep
-  across all SAGA schedulers (incl. stochastic SHEFT), cost/makespan Pareto
-  fronts, scheduler ranking tables.
+- **P1 (done):** full simulation campaign — 5 topology families × sizes
+  (10–100 tasks) × 3 network regimes (edge-heavy / hybrid / API-rich) across
+  19 classical SAGA schedulers, 6 naive baselines, and a cost-aware λ-sweep;
+  SHEFT-vs-MeanHEFT robustness under LLM latency variance (paired
+  Monte-Carlo); ncsim discrete-event cross-check. Regenerate everything:
+  `python experiments/run_p1.py` (artifacts in `figures/out/`).
 - **P2:** profiler (ollama + Anthropic + bandwidth), Wayline ODAG compiler,
   live Scenario A (edge intelligence report) on a lab k3s cluster.
 - **P3:** full live campaigns, security layer (signed envelopes, audit
