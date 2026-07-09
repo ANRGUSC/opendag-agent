@@ -12,7 +12,7 @@ OpenDAG-Agent is a research-oriented toolkit for modeling multi-agent LLM workfl
 
 It connects agent workflow design with classical DAG scheduling. Instead of assuming every task runs on the same hosted frontier model, OpenDAG-Agent asks: **which task should run where, given model capability, network bandwidth, execution speed, and cost?**
 
-The current release focuses on local modeling, scheduling, simulation, and deterministic execution. Cluster execution through [Wayline](https://github.com/ANRGUSC/wayline), profiling, and advanced audit/security features are planned roadmap items.
+The current release covers local modeling, scheduling, simulation, and deterministic execution, including a full simulation campaign. Cluster execution through [Wayline](https://github.com/ANRGUSC/wayline), profiling, and advanced audit/security features are planned roadmap items.
 
 ## What this project does
 
@@ -62,6 +62,22 @@ The main takeaway is that placement matters. A scheduler that accounts for execu
 
 An interesting detail: with 2 Mbps site uplinks, HEFT may decide that shipping raw data to parallel API nodes is faster than extracting locally. When uplinks are tightened, the preferred placement shifts back toward the edge. This kind of network-aware reasoning is exactly what many agent frameworks do not yet provide.
 
+## Simulation campaign results (P1)
+
+The full P1 simulation campaign is complete: 1,767 validated schedules across 5 topology families, graph sizes from 10 to 100 tasks, and 3 network regimes (edge-heavy, hybrid, and API-rich), comparing 19 classical SAGA schedulers, 6 naive baselines, and a cost-aware λ-sweep. Regenerate everything with `python experiments/run_p1.py`.
+
+![Cost vs makespan Pareto](docs/img/f5_pareto.png)
+
+Key findings:
+
+* The framework-style baseline that sends every step to the frontier API averages **1.4–3.7× the best achievable makespan**, depending on topology family, and is strictly dominated on the cost/makespan plane.
+* The cost-aware λ-sweep is a knob agent frameworks do not have: on the flagship edge-sensing instance it beats HEFT's makespan at near-zero dollar cost by keeping work local. Data locality pays on both axes.
+* Honest negatives, reported: not every classical algorithm transfers (GDL lands around 12×, echoing SAGA's PISA finding that no scheduler dominates), and repair-wrapped constraint-blind schedulers lose to natively constraint-aware greedy schedulers on pinned graphs. This motivates the constraint-aware classical variants on the roadmap.
+* Under LLM latency variance, stochastic SHEFT improves p95 makespan by up to 3.2% over MeanHEFT at zero extra cost (paired Monte-Carlo, experiment E1b).
+* Independent-engine validation: SAGA's analytic makespans and ncsim's discrete-event simulations agree within 0.0–0.8% on identical instances.
+
+Distributions across all 57 instances: [f4_makespan_distributions.png](docs/img/f4_makespan_distributions.png). A scheduler ranking table is written to `figures/out/t2_ranking.md` after a run.
+
 ## Quickstart
 
 This quickstart runs locally. It requires no cluster, no API keys, and no paid API calls.
@@ -98,7 +114,7 @@ OpenDAG-Agent starts with an `AgentGraph`, which describes the workflow as typed
 
 ## Current status
 
-The current release implements the core local research workflow.
+The current release implements the core local research workflow and the full simulation campaign.
 
 Implemented now:
 
@@ -108,8 +124,11 @@ Implemented now:
 * feasibility constraints for model tiers and pinned tasks,
 * baseline scheduling strategies,
 * dollar-cost model,
+* cost-aware λ-sweep scheduler,
+* stochastic instances with Monte-Carlo schedule evaluation,
 * deterministic local runner,
-* quick simulation experiment.
+* quick simulation experiment,
+* full P1 simulation campaign with Pareto fronts and scheduler rankings.
 
 Planned or in progress:
 
@@ -118,22 +137,22 @@ Planned or in progress:
 * live execution on a k3s edge cluster,
 * full signed-envelope and audit-chain security layer,
 * privacy-preserving partitioned execution demos,
-* larger simulation campaigns and DAGBench integration.
+* DAGBench integration.
 
 ## Modules
 
-| Module             | What it does                                                                                                                              | Status     |
-| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `opendag.graphs`   | Defines the agent workflow DAG model, typed tasks, model tiers, pins, payloads, JSON format, and canonical topologies.                    | P0         |
-| `opendag.schedule` | Converts executor/network models and agent graphs into SAGA inputs. Adds baseline schedulers, feasibility enforcement, and cost modeling. | P0         |
-| `opendag.execute`  | Provides `LocalRunner`, an async in-process execution engine with pluggable LLM clients. Includes a free deterministic `MockLLMClient`.   | P0         |
-| `opendag.profile`  | Stores measured token throughput, API latency, and bandwidth profiles in dagprofiler-style JSON.                                          | Planned P2 |
-| `opendag.security` | Provides groundwork for identities, signed envelopes, hash-chained audit logs, and `opendag verify`.                                      | Planned P3 |
+| Module             | What it does                                                                                                                                                                                       | Status     |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `opendag.graphs`   | Defines the agent workflow DAG model, typed tasks, model tiers, pins, payloads, JSON format, and canonical topologies.                                                                             | P0         |
+| `opendag.schedule` | Converts executor/network models and agent graphs into SAGA inputs. Adds baseline schedulers, feasibility enforcement, cost modeling, a cost-aware λ-sweep scheduler, and Monte-Carlo evaluation. | P0–P1      |
+| `opendag.execute`  | Provides `LocalRunner`, an async in-process execution engine with pluggable LLM clients. Includes a free deterministic `MockLLMClient`.                                                            | P0         |
+| `opendag.profile`  | Stores measured token throughput, API latency, and bandwidth profiles in dagprofiler-style JSON.                                                                                                   | Planned P2 |
+| `opendag.security` | Provides groundwork for identities, signed envelopes, hash-chained audit logs, and `opendag verify`.                                                                                               | Planned P3 |
 
 Status labels refer to roadmap phases:
 
-* **P0**: implemented in the current release.
-* **P1–P4**: planned future milestones.
+* **P0–P1**: implemented in the current release.
+* **P2–P4**: planned future milestones.
 
 ## Core concepts
 
@@ -184,7 +203,7 @@ OpenDAG-Agent uses simple units so compute and communication both reduce to time
 | Bandwidth                                | KB/s                   |
 | Scheduled compute and communication time | Seconds                |
 
-Current P0 modeling simplifications:
+Current modeling simplifications:
 
 * prefill time is folded into executor speed,
 * context-window limits are not enforced,
@@ -200,14 +219,14 @@ These simplifications are intended to be replaced by the planned P2 profiler.
 | ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
 | [SAGA](https://github.com/ANRGUSC/saga)               | Scheduling engine with 23 classical algorithms and one `Scheduler` API. Installed from PyPI as `anrg-saga`. |
 | [Wayline](https://github.com/ANRGUSC/wayline)         | k3s-native ODAG runtime and future execution target for OpenDAG-Agent.                                      |
-| [dagprofiler](https://github.com/ANRGUSC/dagprofiler) | DAG Task Standard and profile format that the planned profiler extends.                                     |
+| [dagprofiler](https://github.com/ANRGUSC/dagprofiler) | DAG Task Standard and profile format that the planned profiler extends.                                      |
 | [DAGBench](https://github.com/ANRGUSC/dagbench)       | Planned benchmark home for the agentic topology suite.                                                      |
 | [ncsim](https://github.com/ANRGUSC/ncsim)             | Discrete-event simulator used as a cross-check for simulation campaigns.                                    |
 | [Jupiter](https://github.com/ANRGUSC/Jupiter)         | Earlier ANRG work on dispersed computing with profiler, mapper, and dispatcher components.                  |
 
 ## Roadmap
 
-### P0: Current release
+### P0: Core release (done)
 
 * Agentic DAG model and canonical topologies.
 * SAGA bridge.
@@ -217,12 +236,14 @@ These simplifications are intended to be replaced by the planned P2 profiler.
 * LocalRunner.
 * Quick simulation.
 
-### P1: Full simulation campaign
+### P1: Full simulation campaign (done)
 
-* Sweep topology, graph size, and network regime.
-* Compare all SAGA schedulers, including stochastic SHEFT.
-* Generate cost/makespan Pareto fronts.
-* Produce scheduler ranking tables.
+* Swept 5 topology families, graph sizes from 10 to 100 tasks, and 3 network regimes.
+* Compared 19 classical SAGA schedulers, 6 naive baselines, and a cost-aware λ-sweep.
+* Generated cost/makespan Pareto fronts and scheduler ranking tables.
+* Evaluated stochastic SHEFT against MeanHEFT under LLM latency variance with paired Monte-Carlo runs.
+* Cross-checked results against the ncsim discrete-event simulator.
+* Regenerate all artifacts with `python experiments/run_p1.py` (outputs in `figures/out/`).
 
 ### P2: Profiling and Wayline execution
 
