@@ -78,6 +78,16 @@ Key findings:
 
 Distributions across all 57 instances: [f4_makespan_distributions.png](docs/img/f4_makespan_distributions.png). A scheduler ranking table is written to `figures/out/t2_ranking.md` after a run.
 
+### Are these results surprising?
+
+A natural reaction is that the tradeoff is obvious, since open-weight models cost nothing to run and hosted APIs are fast. The simple version of that intuition breaks down in several places.
+
+Running locally lowers cost but raises makespan. Local models generate tokens much more slowly than a frontier API, which is why the cheap local-first strategy is also the slowest point on the curve. At the other end, the all-API baseline is beaten on both cost and makespan by the mixed placements that HEFT finds, because good placement recovers time the baseline loses to serialization and data movement. If either extreme were near-optimal, there would be no frontier to map.
+
+Model tiers also rule out the trivial answer of running everything locally. Tasks that require frontier capability cannot be silently downgraded to a small edge model, so the cost floor for realistic workflows sits above zero.
+
+Finally, the best placement shifts with network conditions. With 2 Mbps uplinks, shipping raw data to parallel API nodes beats extracting at the edge, and tightening the uplinks reverses that choice. A fixed developer assignment cannot track these crossover points. The contribution of the campaign is quantitative: it maps the cost/latency frontier, identifies which schedulers find dominant placements, and shows how the optimum moves as the network changes.
+
 ## Quickstart
 
 This quickstart runs locally. It requires no cluster, no API keys, and no paid API calls.
