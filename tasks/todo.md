@@ -34,5 +34,6 @@ optimal, cost-blind); the P1 regime sweep + cost-aware λ objective covers this.
 ## Later phases
 
 P2 (profiler, lab cluster, ODAG compiler, live Scenario A), P3 (full E2 + security
-layer E3), P4 (optional DO rerun, docs, DAGBench PR, v0.1.0 + Zenodo), Final
-(figure polish + results memo). See the handoff doc.
+layer E3, incl. privacy-preserving partitioned data/model transfer demo over
+Wayline's data plane), P4 (optional DO rerun, docs, DAGBench PR, v0.1.0 + Zenodo),
+Final (figure polish + results memo). See the handoff doc.

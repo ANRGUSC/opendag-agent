@@ -7,14 +7,14 @@ name = "opendag-agent"
 version = "0.0.1"
 description = "Plan, schedule, execute, and audit multi-LLM-agent workflows as task graphs across heterogeneous edge, cloud, and hosted-API executors. SAGA plans, Wayline executes."
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 license = { text = "MIT" }
 authors = [
   { name = "Autonomous Networks Research Group, University of Southern California" },
 ]
 keywords = ["DAG", "scheduling", "LLM", "agents", "edge computing", "HEFT", "SAGA"]
 dependencies = [
-  "anrg-saga",
+  "anrg-saga>=2.0.4",
   "networkx>=3.0",
 ]
 

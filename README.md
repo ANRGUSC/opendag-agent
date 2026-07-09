@@ -6,7 +6,7 @@ across heterogeneous edge, cloud, and hosted-API executors.**
 
 [![CI](https://github.com/ANRGUSC/opendag-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/ANRGUSC/opendag-agent/actions)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)
+![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue.svg)
 
 ## Why
 
@@ -71,7 +71,7 @@ AgentGraph ──▶ profiles ──▶ SAGA schedule ──▶ execute ──�
 | `opendag.schedule` | Executor/network model → SAGA `Network`; AgentGraph → SAGA `TaskGraph`; baseline strategies as SAGA `Scheduler` subclasses; feasibility (tier/pin) enforcement wrapper; $ cost model | ✅ P0 |
 | `opendag.execute` | `LocalRunner`: async in-process execution with a pluggable LLM client (`MockLLMClient` is free and deterministic) | ✅ P0 (Wayline ODAG compiler: P2) |
 | `opendag.profile` | Measured token throughput / API latency / bandwidth profiles (dagprofiler-style JSON) | ⬜ P2 |
-| `opendag.security` | Ed25519 identities, signed envelopes, hash-chained audit log, `opendag verify` | ⬜ P3 |
+| `opendag.security` | Ed25519 identities, signed envelopes, hash-chained audit log, `opendag verify`; groundwork for privacy-preserving partitioned data/model transfer over Wayline's data plane | ⬜ P3 |
 
 ### Model tiers keep comparisons honest
 
@@ -114,7 +114,10 @@ executor parameters are declared, not measured.
 - **P2:** profiler (ollama + Anthropic + bandwidth), Wayline ODAG compiler,
   live Scenario A (edge intelligence report) on a lab k3s cluster.
 - **P3:** full live campaigns, security layer (signed envelopes, audit
-  chain, capability manifests, `opendag verify`).
+  chain, capability manifests, `opendag verify`), and a first
+  privacy-preserving partitioned-execution demo: data/model pieces move
+  between nodes only at computation time, so no single node ever holds the
+  whole — with Wayline as the compute and scheduling backbone.
 - **P4:** optional DigitalOcean reproduction scripts, DAGBench PR, v0.1.0.
 
 ## References
